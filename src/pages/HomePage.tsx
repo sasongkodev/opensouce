@@ -11,6 +11,7 @@ import {
   Settings,
   Home as HomeIcon,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // shadcn/ui
 import {
@@ -42,6 +43,8 @@ interface QuickActionItem {
 }
 
 const HomePage = () => {
+  const navigate = useNavigate();
+
   const [locationAllowed, setLocationAllowed] = useState<boolean | null>(null);
   const [coords, setCoords] = useState<Coords | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,15 +52,15 @@ const HomePage = () => {
   // Request geolocation on component mount or retry
   useEffect(() => {
     if (!navigator.geolocation || locationAllowed !== null) return;
-    
+
     setIsLoading(true);
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocationAllowed(true);
-        setCoords({ 
-          lat: position.coords.latitude, 
-          lng: position.coords.longitude 
+        setCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
         });
         setIsLoading(false);
       },
@@ -100,38 +103,103 @@ const HomePage = () => {
   const nextPrayerTime = "12:03"; // WIB
 
   // Prayer times data
-  const prayerTimes: PrayerTime[] = useMemo(() => [
-    { key: "subuh", label: "Subuh", time: "04:37" },
-    { key: "dzuhur", label: "Dzuhur", time: "12:03" },
-    { key: "ashar", label: "Ashar", time: "15:24" },
-    { key: "maghrib", label: "Maghrib", time: "17:59" },
-    { key: "isya", label: "Isya", time: "19:09" },
-  ], []);
+  const prayerTimes: PrayerTime[] = useMemo(
+    () => [
+      { key: "subuh", label: "Subuh", time: "04:37" },
+      { key: "dzuhur", label: "Dzuhur", time: "12:03" },
+      { key: "ashar", label: "Ashar", time: "15:24" },
+      { key: "maghrib", label: "Maghrib", time: "17:59" },
+      { key: "isya", label: "Isya", time: "19:09" },
+    ],
+    []
+  );
 
   // Quick actions data
-  const quickActions: QuickActionItem[] = useMemo(() => [
-    { icon: <BookOpen className="h-5 w-5" />, label: "Qur'an", route: "/quran" },
-    { icon: <Search className="h-5 w-5" />, label: "Tafsir", route: "/tafsir" },
-    { icon: <Clock className="h-5 w-5" />, label: "Jadwal", route: "/jadwal" },
-    { icon: <CalendarIcon className="h-5 w-5" />, label: "Hijriyah", route: "/kalender" },
-    { icon: <Compass className="h-5 w-5" />, label: "Kiblat", route: "/kiblat" },
-    { icon: <Bookmark className="h-5 w-5" />, label: "Bookmark", route: "/bookmark" },
-    { icon: <Settings className="h-5 w-5" />, label: "Pengaturan", route: "/settings" },
-  ], []);
+  const quickActions: QuickActionItem[] = useMemo(
+    () => [
+      {
+        icon: <BookOpen className="h-5 w-5" />,
+        label: "Qur'an",
+        route: "/quran",
+      },
+      {
+        icon: <Search className="h-5 w-5" />,
+        label: "Tafsir",
+        route: "/tafsir",
+      },
+      {
+        icon: <Clock className="h-5 w-5" />,
+        label: "Jadwal",
+        route: "/jadwal",
+      },
+      {
+        icon: <CalendarIcon className="h-5 w-5" />,
+        label: "Hijriyah",
+        route: "/kalender",
+      },
+      {
+        icon: <Compass className="h-5 w-5" />,
+        label: "Kiblat",
+        route: "/kiblat",
+      },
+      {
+        icon: <Bookmark className="h-5 w-5" />,
+        label: "Bookmark",
+        route: "/bookmark",
+      },
+      {
+        icon: <Settings className="h-5 w-5" />,
+        label: "Pengaturan",
+        route: "/settings",
+      },
+    ],
+    []
+  );
 
-  // Navigation items
-  const navItems = useMemo(() => [
-    { label: "Beranda", active: true, icon: <HomeIcon className="h-5 w-5" /> },
-    { label: "Qur'an", active: false, icon: <BookOpen className="h-5 w-5" /> },
-    { label: "Jadwal", active: false, icon: <Clock className="h-5 w-5" /> },
-    { label: "Kalender", active: false, icon: <CalendarIcon className="h-5 w-5" /> },
-    { label: "Lainnya", active: false, icon: <Settings className="h-5 w-5" /> },
-  ], []);
+  // Navigation items (with route)
+  const navItems = useMemo(
+    () => [
+      {
+        label: "Beranda",
+        route: "/",
+        active: true,
+        icon: <HomeIcon className="h-5 w-5" />,
+      },
+      {
+        label: "Qur'an",
+        route: "/quran",
+        active: false,
+        icon: <BookOpen className="h-5 w-5" />,
+      },
+      {
+        label: "Jadwal",
+        route: "/jadwal",
+        active: false,
+        icon: <Clock className="h-5 w-5" />,
+      },
+      {
+        label: "Kalender",
+        route: "/kalender",
+        active: false,
+        icon: <CalendarIcon className="h-5 w-5" />,
+      },
+      {
+        label: "Lainnya",
+        route: "/settings",
+        active: false,
+        icon: <Settings className="h-5 w-5" />,
+      },
+    ],
+    []
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pb-[calc(env(safe-area-inset-bottom)+88px)]">
       {/* App Bar */}
-      <header className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header
+        className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-9 w-9 rounded-2xl bg-indigo-100 grid place-items-center">
@@ -139,10 +207,18 @@ const HomePage = () => {
             </div>
             <div className="truncate">
               <p className="text-xs text-slate-500 truncate">{todayStr}</p>
-              <h1 className="text-lg font-semibold text-slate-900 truncate">Al‑Qur'an Digital</h1>
+              <h1 className="text-lg font-semibold text-slate-900 truncate">
+                Al-Qur'an Digital
+              </h1>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="rounded-xl" aria-label="Pengaturan">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-xl"
+            aria-label="Pengaturan"
+            onClick={() => navigate("/settings")}
+          >
             <Settings className="h-5 w-5" />
           </Button>
         </div>
@@ -155,7 +231,8 @@ const HomePage = () => {
           <MapPin className="h-4 w-4 shrink-0 text-indigo-600" />
           {isLoading && (
             <span className="inline-flex items-center gap-2">
-              Mencoba mendeteksi lokasi… <span className="sr-only">Loading</span>
+              Mencoba mendeteksi lokasi…{" "}
+              <span className="sr-only">Loading</span>
               <span className="relative inline-block h-2 w-2">
                 <span className="absolute inline-block h-2 w-2 rounded-full bg-indigo-500 animate-ping" />
                 <span className="absolute inline-block h-2 w-2 rounded-full bg-indigo-500" />
@@ -164,9 +241,14 @@ const HomePage = () => {
           )}
           {locationAllowed === true && (
             <span>
-              Lokasi aktif{coords ? (
+              Lokasi aktif
+              {coords ? (
                 <>
-                  : <span className="font-medium"> {coords.lat.toFixed(3)}°, {coords.lng.toFixed(3)}°</span>
+                  :{" "}
+                  <span className="font-medium">
+                    {" "}
+                    {coords.lat.toFixed(3)}°, {coords.lng.toFixed(3)}°
+                  </span>
                 </>
               ) : null}
             </span>
@@ -174,7 +256,12 @@ const HomePage = () => {
           {locationAllowed === false && (
             <div className="flex w-full items-center justify-between gap-2">
               <span className="text-red-600">Izin lokasi ditolak.</span>
-              <Button variant="outline" size="sm" className="rounded-xl" onClick={handleRetryLocation}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                onClick={handleRetryLocation}
+              >
                 Coba Lagi
               </Button>
             </div>
@@ -188,7 +275,9 @@ const HomePage = () => {
               <div>
                 <p className="text-indigo-100 text-xs">Salat berikutnya</p>
                 <div className="flex items-baseline gap-2">
-                  <h2 className="text-2xl font-bold leading-tight">{nextPrayerLabel}</h2>
+                  <h2 className="text-2xl font-bold leading-tight">
+                    {nextPrayerLabel}
+                  </h2>
                   <span className="text-lg">{nextPrayerTime} WIB</span>
                 </div>
               </div>
@@ -205,11 +294,11 @@ const HomePage = () => {
           <h2 className="sr-only">Akses Cepat</h2>
           <div className="grid grid-cols-4 gap-3">
             {quickActions.map((item) => (
-              <QuickItem 
-                key={item.label} 
-                icon={item.icon} 
-                label={item.label} 
-                onClick={() => { /* route to item.route */ }} 
+              <QuickItem
+                key={item.label}
+                icon={item.icon}
+                label={item.label}
+                onClick={() => navigate(item.route)} // route aktif
               />
             ))}
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 h-20 grid place-items-center text-slate-400 text-xs">
@@ -225,7 +314,7 @@ const HomePage = () => {
               <BookOpen className="w-6 h-6 text-yellow-700" />
             </div>
             <div>
-              <CardTitle className="text-lg">Al‑Qur'an</CardTitle>
+              <CardTitle className="text-lg">Al-Qur'an</CardTitle>
               <CardDescription>Baca & pelajari kitab suci</CardDescription>
             </div>
           </CardHeader>
@@ -234,7 +323,10 @@ const HomePage = () => {
               Baca mushaf dengan tajwid, terjemahan, dan tafsir lengkap.
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">
+              <Button
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
+                onClick={() => navigate("/quran")}
+              >
                 Baca Sekarang
               </Button>
               <Button variant="outline" className="w-full rounded-xl">
@@ -265,7 +357,10 @@ const HomePage = () => {
             {locationAllowed === true && (
               <div className="grid grid-cols-3 gap-3 text-sm text-slate-700">
                 {prayerTimes.map((prayer) => (
-                  <div key={prayer.key} className="rounded-xl border bg-slate-50 px-3 py-2 flex items-center justify-between">
+                  <div
+                    key={prayer.key}
+                    className="rounded-xl border bg-slate-50 px-3 py-2 flex items-center justify-between"
+                  >
                     <span className="font-medium">{prayer.label}</span>
                     <span className="tabular-nums">{prayer.time}</span>
                   </div>
@@ -274,11 +369,13 @@ const HomePage = () => {
             )}
             {locationAllowed === false && (
               <div>
-                <p className="text-red-600 text-sm">Aktifkan izin lokasi untuk menampilkan jadwal salat.</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3 w-full rounded-xl" 
+                <p className="text-red-600 text-sm">
+                  Aktifkan izin lokasi untuk menampilkan jadwal salat.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-full rounded-xl"
                   onClick={handleRetryLocation}
                 >
                   Coba Lagi
@@ -300,9 +397,16 @@ const HomePage = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-slate-800 font-semibold text-base">Segera hadir</p>
+            <p className="text-slate-800 font-semibold text-base">
+              Segera hadir
+            </p>
             <p className="text-slate-500 text-sm">{todayStr}</p>
-            <Button variant="ghost" size="sm" className="mt-2 text-indigo-600 hover:text-indigo-800 w-full justify-start px-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 text-indigo-600 hover:text-indigo-800 w-full justify-start px-0"
+              onClick={() => navigate("/kalender")}
+            >
               Lihat Kalender Lengkap
             </Button>
           </CardContent>
@@ -319,11 +423,12 @@ const HomePage = () => {
       >
         <div className="mx-auto max-w-md px-6 py-2 grid grid-cols-5 gap-2 text-xs">
           {navItems.map((item) => (
-            <TabItem 
-              key={item.label} 
-              label={item.label} 
-              icon={item.icon} 
-              active={item.active} 
+            <TabItem
+              key={item.label}
+              label={item.label}
+              icon={item.icon}
+              active={item.active}
+              onClick={() => navigate(item.route)}
             />
           ))}
         </div>
@@ -349,7 +454,9 @@ function QuickItem({ icon, label, onClick }: QuickItemProps) {
       aria-label={label}
     >
       <div className="flex flex-col items-center gap-2">
-        <div className="h-9 w-9 rounded-xl bg-slate-100 grid place-items-center">{icon}</div>
+        <div className="h-9 w-9 rounded-xl bg-slate-100 grid place-items-center">
+          {icon}
+        </div>
         <span className="text-xs font-medium">{label}</span>
       </div>
     </button>
@@ -360,17 +467,23 @@ interface TabItemProps {
   label: string;
   icon: React.ReactNode;
   active?: boolean;
+  onClick?: () => void; // ← tambah handler
 }
 
-function TabItem({ label, icon, active = false }: TabItemProps) {
+function TabItem({ label, icon, active = false, onClick }: TabItemProps) {
   return (
     <button
+      onClick={onClick}
       className={`flex flex-col items-center gap-1 rounded-xl py-1 ${
         active ? "text-indigo-600" : "text-slate-500 hover:text-slate-700"
       }`}
       aria-current={active ? "page" : undefined}
     >
-      <div className={`h-9 w-9 grid place-items-center rounded-xl ${active ? "bg-indigo-50" : "bg-transparent"}`}>
+      <div
+        className={`h-9 w-9 grid place-items-center rounded-xl ${
+          active ? "bg-indigo-50" : "bg-transparent"
+        }`}
+      >
         {icon}
       </div>
       <span className="text-[10px] leading-none font-medium">{label}</span>
