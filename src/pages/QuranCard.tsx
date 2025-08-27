@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   BookOpen,
   Bookmark,
@@ -9,15 +9,16 @@ import {
   MoreVertical,
   Play,
   Share2,
-  
   Search,
-  Home,
+  Home as HomeIcon,
   Settings,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarIcon } from "lucide-react";
 
-// --- Types
+// -----------------------------------------------------------------------------
+// Types (app-level)
 export type SurahCardData = {
   number: number; // 1..114
   arabicName: string; // الفاتحة
@@ -25,14 +26,48 @@ export type SurahCardData = {
   translation: string; // Pembukaan
   revelation: "Makkiyah" | "Madaniyah" | string;
   ayahCount: number;
-  juzFrom: number;
+  juzFrom?: number;
   juzTo?: number;
-  lastReadAyah?: number; // e.g. 5
+  lastReadAyah?: number; // e.g. 5 (optional, can be filled from local storage later)
   lastReadAt?: string; // ISO string
   audioUrl?: string; // mp3 preview for the surah
 };
 
-// --- Helpers
+// -----------------------------------------------------------------------------
+// Types (EQuran v2)
+// NOTE: Field names are based on EQuran v2 docs (code/message/data wrapper)
+// https://equran.id/apidev/v2
+// List item
+interface ApiSurahListItem {
+  nomor: number;
+  nama: string; // Arabic or Display name
+  namaLatin: string; // Transliteration (Latin)
+  jumlahAyat: number;
+  tempatTurun: "Makkiyah" | "Madaniyah" | string;
+  arti: string; // Translation (id)
+  audioFull?: Record<string, string>; // qari id -> url
+}
+// Detail
+interface ApiAyatItem {
+  nomorAyat: number;
+  teksArab: string;
+  teksLatin: string;
+  teksIndonesia: string;
+  audio?: Record<string, string>; // qari id -> url
+}
+interface ApiSurahDetail extends ApiSurahListItem {
+  deskripsi?: string;
+  ayat: ApiAyatItem[];
+}
+
+interface ApiWrapper<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+
+// -----------------------------------------------------------------------------
+// Helpers
 const formatLastRead = (iso?: string) => {
   if (!iso) return "Belum mulai";
   try {
@@ -50,7 +85,6 @@ const getAudioUrl = (surah: number) =>
   // Sumber publik demo (boleh diganti dengan CDN internal)
   `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${surah}.mp3`;
 
-// --- UI Primitives (tailwind-only, no external UI kit required)
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center rounded-full border border-slate-200/70 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-600">
@@ -75,7 +109,75 @@ function IconButton(
   );
 }
 
-// --- Core Card Component
+// -----------------------------------------------------------------------------
+// Data hooks
+function useSurahList() {
+  const [list, setList] = useState<SurahCardData[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Try cache first (to avoid re-fetch when navigating back)
+        const cached = sessionStorage.getItem("equran_surah_list_v2");
+        if (cached) {
+          const parsed: SurahCardData[] = JSON.parse(cached);
+          if (isMounted) {
+            setList(parsed);
+            setIsLoading(false);
+          }
+          // In background we could refresh; but we avoid background tasks per constraints
+          return;
+        }
+
+        const res = await fetch("https://equran.id/api/v2/surat");
+        const json: ApiWrapper<ApiSurahListItem[]> = await res.json();
+        if (json.code !== 200)
+          throw new Error(json.message || "Gagal memuat surat");
+
+        const mapped: SurahCardData[] = json.data.map((it) => ({
+          number: it.nomor,
+          arabicName: it.nama || "",
+          transliteration: it.namaLatin,
+          translation: it.arti,
+          revelation: it.tempatTurun,
+          ayahCount: it.jumlahAyat,
+          audioUrl: it.audioFull?.["05"] || getAudioUrl(it.nomor), // 05 ~ Misyari (fallback)
+        }));
+
+        if (isMounted) {
+          setList(mapped);
+          setIsLoading(false);
+          sessionStorage.setItem(
+            "equran_surah_list_v2",
+            JSON.stringify(mapped)
+          );
+        }
+      } catch (e: any) {
+        if (isMounted) {
+          setError(e?.message || "Terjadi kesalahan");
+          setIsLoading(false);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return { list, isLoading, error };
+}
+
+// -----------------------------------------------------------------------------
+// Quran Card (unchanged visual)
 export function QuranCard({
   data,
   onBookmark,
@@ -175,12 +277,14 @@ export function QuranCard({
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Chip>
-              Juz {data.juzFrom}
-              {data.juzTo && data.juzTo !== data.juzFrom
-                ? `–${data.juzTo}`
-                : ""}
-            </Chip>
+            {typeof data.juzFrom !== "undefined" && (
+              <Chip>
+                Juz {data.juzFrom}
+                {data.juzTo && data.juzTo !== data.juzFrom
+                  ? `–${data.juzTo}`
+                  : ""}
+              </Chip>
+            )}
           </div>
           <p className="font-arabic text-2xl leading-none">{data.arabicName}</p>
         </div>
@@ -218,65 +322,29 @@ export function QuranCard({
   );
 }
 
-// --- Demo Page: menampilkan beberapa kartu & interaksi dasar
-const SAMPLE: SurahCardData[] = [
-  {
-    number: 1,
-    arabicName: "ٱلْفَاتِحَة",
-    transliteration: "Al-Fātiḥah",
-    translation: "Pembukaan",
-    revelation: "Makkiyah",
-    ayahCount: 7,
-    juzFrom: 1,
-    lastReadAyah: 3,
-    lastReadAt: new Date().toISOString(),
-    audioUrl: getAudioUrl(1),
-  },
-  {
-    number: 2,
-    arabicName: "ٱلْبَقَرَة",
-    transliteration: "Al-Baqarah",
-    translation: "Sapi Betina",
-    revelation: "Madaniyah",
-    ayahCount: 286,
-    juzFrom: 1,
-    juzTo: 3,
-    lastReadAyah: 120,
-    lastReadAt: new Date(Date.now() - 36e5 * 18).toISOString(),
-    audioUrl: getAudioUrl(2),
-  },
-  {
-    number: 112,
-    arabicName: "ٱلْإِخْلَاص",
-    transliteration: "Al-Ikhlāṣ",
-    translation: "Ikhlas",
-    revelation: "Makkiyah",
-    ayahCount: 4,
-    juzFrom: 30,
-    lastReadAyah: 2,
-    lastReadAt: new Date(Date.now() - 36e5 * 72).toISOString(),
-    audioUrl: getAudioUrl(112),
-  },
-];
-
+// -----------------------------------------------------------------------------
+// Quran List Page (fetch from EQuran)
 export default function QuranCardPage() {
   const navigate = useNavigate();
   const [bookmarked, setBookmarked] = useState<number[]>([]);
   const [query, setQuery] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  const { list, isLoading, error } = useSurahList();
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return SAMPLE;
-    return SAMPLE.filter((s) =>
+    const items = list || [];
+    if (!q) return items;
+    return items.filter((s) =>
       [
         s.transliteration.toLowerCase(),
         s.translation.toLowerCase(),
         s.arabicName,
         String(s.number),
-      ].some((v) => v.includes(q))
+      ].some((v) => v?.toString().toLowerCase().includes(q))
     );
-  }, [query]);
+  }, [query, list]);
 
   const handleBookmark = (s: SurahCardData) => {
     setBookmarked((prev) =>
@@ -311,7 +379,7 @@ export default function QuranCardPage() {
         label: "Beranda",
         route: "/",
         active: false,
-        icon: <Home className="h-5 w-5" />,
+        icon: <HomeIcon className="h-5 w-5" />,
       },
       {
         label: "Qur'an",
@@ -388,30 +456,48 @@ export default function QuranCardPage() {
 
       {/* Main */}
       <main className="max-w-md mx-auto px-4 pt-4 space-y-4">
-        {filtered.map((s) => (
-          <div key={s.number} className="relative">
-            <QuranCard
-              data={s}
-              onContinue={() => console.log("continue", s.number)}
-              onPlay={handlePlay}
-              onBookmark={handleBookmark}
-            />
-            <button
-              className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-lg bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white"
-              onClick={() => handleBookmark(s)}
-            >
-              {bookmarked.includes(s.number) ? (
-                <>
-                  <BookmarkCheck className="h-4 w-4" /> Tersimpan
-                </>
-              ) : (
-                <>
-                  <Bookmark className="h-4 w-4" /> Simpan
-                </>
-              )}
-            </button>
+        {isLoading && (
+          <div className="space-y-3">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="h-28 rounded-2xl bg-white shadow-sm border border-slate-200 animate-pulse"
+              />
+            ))}
           </div>
-        ))}
+        )}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            Gagal memuat daftar surat:{" "}
+            <span className="font-medium">{error}</span>
+          </div>
+        )}
+        {!isLoading &&
+          !error &&
+          filtered.map((s) => (
+            <div key={s.number} className="relative">
+              <QuranCard
+                data={s}
+                onContinue={() => navigate(`/quran/${s.number}`)}
+                onPlay={handlePlay}
+                onBookmark={handleBookmark}
+              />
+              <button
+                className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-lg bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white"
+                onClick={() => handleBookmark(s)}
+              >
+                {bookmarked.includes(s.number) ? (
+                  <>
+                    <BookmarkCheck className="h-4 w-4" /> Tersimpan
+                  </>
+                ) : (
+                  <>
+                    <Bookmark className="h-4 w-4" /> Simpan
+                  </>
+                )}
+              </button>
+            </div>
+          ))}
         <div className="h-2" />
       </main>
 
@@ -439,15 +525,209 @@ export default function QuranCardPage() {
 
       {/* Fonts note: gunakan kelas font-arabic di tailwind untuk font Arab */}
       <style>{`
-        .font-arabic {
-          font-family: 'Noto Naskh Arabic', 'Scheherazade New', system-ui, sans-serif;
-        }
+        .font-arabic { font-family: 'Noto Naskh Arabic', 'Scheherazade New', system-ui, sans-serif; }
       `}</style>
     </div>
   );
 }
 
-/* --------------------------- Small UI pieces --------------------------- */
+// -----------------------------------------------------------------------------
+// Surah Detail Page (/:id) — fetch ayat & render
+export function SurahDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState<ApiSurahDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const cacheKey = `equran_surah_${id}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed: ApiSurahDetail = JSON.parse(cached);
+          if (isMounted) {
+            setData(parsed);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        const res = await fetch(`https://equran.id/api/v2/surat/${id}`);
+        const json: ApiWrapper<ApiSurahDetail> = await res.json();
+        if (json.code !== 200)
+          throw new Error(json.message || "Gagal memuat surat");
+
+        if (isMounted) {
+          setData(json.data);
+          setIsLoading(false);
+          sessionStorage.setItem(cacheKey, JSON.stringify(json.data));
+        }
+      } catch (e: any) {
+        if (isMounted) {
+          setError(e?.message || "Terjadi kesalahan");
+          setIsLoading(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const playFull = () => {
+    if (!data) return;
+    const url = data.audioFull?.["05"] || getAudioUrl(Number(id));
+    if (audioRef.current && url) {
+      audioRef.current.src = url;
+      audioRef.current.play().catch(() => void 0);
+    }
+  };
+
+  const todayStr = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(new Date());
+    } catch {
+      return "Hari ini";
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pb-[calc(env(safe-area-inset-bottom)+88px)]">
+      {/* App Bar */}
+      <header
+        className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-xl"
+            onClick={() => navigate(-1)}
+            aria-label="Kembali"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="min-w-0">
+            <p className="text-xs text-slate-500 truncate">{todayStr}</p>
+            <h1 className="text-lg font-semibold text-slate-900 truncate">
+              {data?.namaLatin || "Membuka surat…"}
+            </h1>
+          </div>
+        </div>
+      </header>
+
+      {/* Main */}
+      <main className="max-w-md mx-auto px-4 pt-4 space-y-4">
+        {isLoading && (
+          <div className="space-y-3">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="h-20 rounded-2xl bg-white shadow-sm border border-slate-200 animate-pulse"
+              />
+            ))}
+          </div>
+        )}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            Gagal memuat surat: <span className="font-medium">{error}</span>
+          </div>
+        )}
+
+        {data && (
+          <>
+            {/* Hero */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold">{data.namaLatin}</h2>
+                    <Chip>{data.tempatTurun}</Chip>
+                    <Chip>{data.jumlahAyat} ayat</Chip>
+                  </div>
+                  <p className="text-sm text-slate-600">{data.arti}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-arabic text-2xl leading-none">
+                    {data.nama}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={playFull}
+                >
+                  <Headphones className="h-4 w-4 mr-2" /> Putar Audio Surat
+                </Button>
+              </div>
+            </div>
+
+            {/* Ayat List */}
+            <section className="space-y-3">
+              {data.ayat.map((a) => {
+                const ayahAudio = a.audio?.["05"]; // prefer Misyari if provided
+                return (
+                  <article
+                    key={a.nomorAyat}
+                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <Chip>Ayat {a.nomorAyat}</Chip>
+                      {ayahAudio && (
+                        <button
+                          className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs text-slate-700 hover:shadow-sm"
+                          onClick={() => {
+                            if (!audioRef.current) return;
+                            audioRef.current.src = ayahAudio;
+                            audioRef.current.play().catch(() => void 0);
+                          }}
+                        >
+                          <Play className="h-4 w-4" /> Putar
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-3 font-arabic text-2xl leading-relaxed text-right">
+                      {a.teksArab}
+                    </p>
+                    <p className="mt-2 text-slate-700 text-sm italic">
+                      {a.teksLatin}
+                    </p>
+                    <p className="mt-2 text-slate-800 text-[15px]">
+                      {a.teksIndonesia}
+                    </p>
+                  </article>
+                );
+              })}
+            </section>
+          </>
+        )}
+
+        <div className="h-20" />
+      </main>
+
+      {/* Hidden audio element */}
+      <audio ref={audioRef} />
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Small UI pieces
 interface TabItemProps {
   label: string;
   icon: React.ReactNode;
