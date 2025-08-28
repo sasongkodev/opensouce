@@ -7,21 +7,12 @@ import {
   Home as HomeIcon,
   BookOpen,
   Clock,
-  Compass,
   Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Types
 interface HijriDate {
-  day: number;
-  month: number;
-  year: number;
-  monthName: string;
-  weekday: string;
-}
-
-interface GregorianDate {
   day: number;
   month: number;
   year: number;
@@ -101,7 +92,6 @@ const HijriCalendarPage = () => {
         }
 
         const hijri = result.data.hijri;
-        const gregorian = result.data.gregorian;
 
         setHijriDate({
           day: parseInt(hijri.day),

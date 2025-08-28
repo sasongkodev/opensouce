@@ -316,7 +316,7 @@ const HomePage = () => {
             <div className="truncate">
               <p className="text-xs text-slate-500 truncate">{todayStr}</p>
               <h1 className="text-lg font-semibold text-slate-900 truncate">
-                Al-Qur'an Digital
+                Al-Qur'an mu
               </h1>
             </div>
           </div>
