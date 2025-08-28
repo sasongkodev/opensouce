@@ -8,6 +8,7 @@ import {
   Headphones,
   MoreVertical,
   Play,
+  Pause,
   Share2,
   Search,
   Home as HomeIcon,
@@ -69,7 +70,7 @@ interface ApiWrapper<T> {
 // -----------------------------------------------------------------------------
 // Helpers
 const formatLastRead = (iso?: string) => {
-  if (!iso) return "Belum mulai";
+  if (!iso) return "Belum dimulai";
   try {
     const d = new Date(iso);
     return new Intl.DateTimeFormat("id-ID", {
@@ -183,11 +184,15 @@ export function QuranCard({
   onBookmark,
   onPlay,
   onContinue,
+  isPlaying = false,
+  onPause,
 }: {
   data: SurahCardData;
   onBookmark?: (surah: SurahCardData) => void;
   onPlay?: (surah: SurahCardData) => void;
   onContinue?: (surah: SurahCardData) => void;
+  isPlaying?: boolean;
+  onPause?: () => void;
 }) {
   const progress = useMemo(() => {
     if (!data.lastReadAyah || data.ayahCount === 0) return 0;
@@ -235,19 +240,19 @@ export function QuranCard({
       <div className="flex flex-col gap-4 p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs text-slate-500">Terakhir dibaca</p>
+            <p className="text-xs text-slate-500"></p>
             <p className="truncate text-sm font-medium text-slate-800">
-              {data.lastReadAyah ? (
+              {data.lastReadAyat ? (
                 <>
-                  Ayat {data.lastReadAyah} • {formatLastRead(data.lastReadAt)}
+                  Ayat {data.lastReadAyat} • {formatLastRead(data.lastReadAt)}
                 </>
               ) : (
-                <>Belum mulai</>
+                <></>
               )}
             </p>
           </div>
 
-          {/* Progress ring */}
+          {/* Progress ring - tanpa persen */}
           <div className="relative">
             <svg className="h-12 w-12 -rotate-90" viewBox="0 0 36 36">
               <path
@@ -267,11 +272,6 @@ export function QuranCard({
                 d="M18 2a16 16 0 1 1 0 32 16 16 0 1 1 0-32"
               />
             </svg>
-            <div className="absolute inset-0 grid place-items-center">
-              <span className="text-xs font-semibold text-slate-700">
-                {progress}%
-              </span>
-            </div>
           </div>
         </div>
 
@@ -296,13 +296,21 @@ export function QuranCard({
               onClick={() => onContinue?.(data)}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95"
             >
-              <BookOpen className="h-4 w-4" /> Lanjut Baca
+              <BookOpen className="h-4 w-4" /> Baca
             </button>
             <button
-              onClick={() => onPlay?.(data)}
+              onClick={() => (isPlaying ? onPause?.() : onPlay?.(data))}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-black active:scale-95"
             >
-              <Play className="h-4 w-4" /> Putar Audio
+              {isPlaying ? (
+                <>
+                  <Pause className="h-4 w-4" /> Jeda
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" /> Putar Audio
+                </>
+              )}
             </button>
           </div>
           <div className="flex items-center gap-1.5">
@@ -324,11 +332,13 @@ export function QuranCard({
 
 // -----------------------------------------------------------------------------
 // Quran List Page (fetch from EQuran)
-export default function QuranCardPage() {
+export function QuranListPage() {
   const navigate = useNavigate();
   const [bookmarked, setBookmarked] = useState<number[]>([]);
   const [query, setQuery] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [currentPlaying, setCurrentPlaying] = useState<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const { list, isLoading, error } = useSurahList();
 
@@ -356,9 +366,55 @@ export default function QuranCardPage() {
 
   const handlePlay = (s: SurahCardData) => {
     if (!audioRef.current) return;
+
+    // Jika sedang memutar surah yang sama, lanjutkan pemutaran
+    if (currentPlaying === s.number && audioRef.current.paused) {
+      audioRef.current.play().catch(() => void 0);
+      setIsPlaying(true);
+      return;
+    }
+
+    // Jika memutar surah yang berbeda
     audioRef.current.src = s.audioUrl || "";
     audioRef.current.play().catch(() => void 0);
+    setCurrentPlaying(s.number);
+    setIsPlaying(true);
   };
+
+  const handlePause = () => {
+    if (!audioRef.current) return;
+    audioRef.current.pause();
+    setIsPlaying(false);
+  };
+
+  // Handle audio events
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentPlaying(null);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("play", handlePlay);
+
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("play", handlePlay);
+    };
+  }, []);
 
   const todayStr = useMemo(() => {
     try {
@@ -480,7 +536,9 @@ export default function QuranCardPage() {
                 data={s}
                 onContinue={() => navigate(`/quran/${s.number}`)}
                 onPlay={handlePlay}
+                onPause={handlePause}
                 onBookmark={handleBookmark}
+                isPlaying={currentPlaying === s.number && isPlaying}
               />
               <button
                 className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-lg bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white"
@@ -534,12 +592,16 @@ export default function QuranCardPage() {
 // -----------------------------------------------------------------------------
 // Surah Detail Page (/:id) — fetch ayat & render
 export function SurahDetailPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [data, setData] = useState<ApiSurahDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentPlayingAyah, setCurrentPlayingAyah] = useState<number | null>(
+    null
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -547,6 +609,10 @@ export function SurahDetailPage() {
       try {
         setIsLoading(true);
         setError(null);
+
+        if (!id || isNaN(Number(id)) || Number(id) < 1 || Number(id) > 114) {
+          throw new Error("Nomor surat tidak valid");
+        }
 
         const cacheKey = `equran_surah_${id}`;
         const cached = sessionStorage.getItem(cacheKey);
@@ -586,10 +652,62 @@ export function SurahDetailPage() {
     if (!data) return;
     const url = data.audioFull?.["05"] || getAudioUrl(Number(id));
     if (audioRef.current && url) {
-      audioRef.current.src = url;
-      audioRef.current.play().catch(() => void 0);
+      if (audioRef.current.src === url && audioRef.current.paused) {
+        // Resume playback if same audio is paused
+        audioRef.current.play().catch(() => void 0);
+        setIsPlaying(true);
+      } else {
+        // Load and play new audio
+        audioRef.current.src = url;
+        audioRef.current.play().catch(() => void 0);
+        setIsPlaying(true);
+        setCurrentPlayingAyah(null); // Indicate full surah is playing
+      }
     }
   };
+
+  const pauseFull = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const playAyah = (ayahNumber: number, audioUrl?: string) => {
+    if (!audioUrl || !audioRef.current) return;
+
+    if (audioRef.current.src === audioUrl && audioRef.current.paused) {
+      audioRef.current.play().catch(() => void 0);
+    } else {
+      audioRef.current.src = audioUrl;
+      audioRef.current.play().catch(() => void 0);
+    }
+    setIsPlaying(true);
+    setCurrentPlayingAyah(ayahNumber);
+  };
+
+  // Handle audio events
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentPlayingAyah(null);
+    };
+
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("ended", handleEnded);
+
+    return () => {
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, []);
 
   const todayStr = useMemo(() => {
     try {
@@ -603,6 +721,43 @@ export function SurahDetailPage() {
       return "Hari ini";
     }
   }, []);
+
+  // Navbar items for detail page
+  const detailNavItems = useMemo(
+    () => [
+      {
+        label: "Beranda",
+        route: "/",
+        active: false,
+        icon: <HomeIcon className="h-5 w-5" />,
+      },
+      {
+        label: "Qur'an",
+        route: "/quran",
+        active: true,
+        icon: <BookOpen className="h-5 w-5" />,
+      },
+      {
+        label: "Jadwal",
+        route: "/jadwal",
+        active: false,
+        icon: <Clock className="h-5 w-5" />,
+      },
+      {
+        label: "Kalender",
+        route: "/kalender",
+        active: false,
+        icon: <CalendarIcon className="h-5 w-5" />,
+      },
+      {
+        label: "Lainnya",
+        route: "/settings",
+        active: false,
+        icon: <Settings className="h-5 w-5" />,
+      },
+    ],
+    []
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pb-[calc(env(safe-area-inset-bottom)+88px)]">
@@ -660,6 +815,11 @@ export function SurahDetailPage() {
                     <Chip>{data.jumlahAyat} ayat</Chip>
                   </div>
                   <p className="text-sm text-slate-600">{data.arti}</p>
+                  {data.deskripsi && (
+                    <p className="mt-2 text-xs text-slate-500 line-clamp-2">
+                      {data.deskripsi}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="font-arabic text-2xl leading-none">
@@ -670,9 +830,21 @@ export function SurahDetailPage() {
               <div className="mt-3 flex items-center gap-2">
                 <Button
                   className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={playFull}
+                  onClick={
+                    isPlaying && currentPlayingAyah === null
+                      ? pauseFull
+                      : playFull
+                  }
                 >
-                  <Headphones className="h-4 w-4 mr-2" /> Putar Audio Surat
+                  {isPlaying && currentPlayingAyah === null ? (
+                    <>
+                      <Pause className="h-4 w-4 mr-2" /> Jeda Audio
+                    </>
+                  ) : (
+                    <>
+                      <Headphones className="h-4 w-4 mr-2" /> Putar Audio Surat
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -690,24 +862,32 @@ export function SurahDetailPage() {
                       <Chip>Ayat {a.nomorAyat}</Chip>
                       {ayahAudio && (
                         <button
-                          className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs text-slate-700 hover:shadow-sm"
-                          onClick={() => {
-                            if (!audioRef.current) return;
-                            audioRef.current.src = ayahAudio;
-                            audioRef.current.play().catch(() => void 0);
-                          }}
+                          className={`inline-flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
+                            currentPlayingAyah === a.nomorAyat && isPlaying
+                              ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
+                          }`}
+                          onClick={() => playAyah(a.nomorAyat, ayahAudio)}
                         >
-                          <Play className="h-4 w-4" /> Putar
+                          {currentPlayingAyah === a.nomorAyat && isPlaying ? (
+                            <>
+                              <Pause className="h-3 w-3" /> Jeda
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-3 w-3" /> Putar
+                            </>
+                          )}
                         </button>
                       )}
                     </div>
-                    <p className="mt-3 font-arabic text-2xl leading-relaxed text-right">
+                    <p className="mt-3 font-arabic text-2xl leading-loose text-right">
                       {a.teksArab}
                     </p>
                     <p className="mt-2 text-slate-700 text-sm italic">
                       {a.teksLatin}
                     </p>
-                    <p className="mt-2 text-slate-800 text-[15px]">
+                    <p className="mt-2 text-slate-800 text-[15px] leading-relaxed">
                       {a.teksIndonesia}
                     </p>
                   </article>
@@ -719,6 +899,25 @@ export function SurahDetailPage() {
 
         <div className="h-20" />
       </main>
+
+      {/* Bottom Nav (match HomePage) */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 border-t bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        aria-label="Navigasi bawah"
+      >
+        <div className="mx-auto max-w-md px-6 py-2 grid grid-cols-5 gap-2 text-xs">
+          {detailNavItems.map((item) => (
+            <TabItem
+              key={item.label}
+              label={item.label}
+              icon={item.icon}
+              active={item.active}
+              onClick={() => navigate(item.route)}
+            />
+          ))}
+        </div>
+      </nav>
 
       {/* Hidden audio element */}
       <audio ref={audioRef} />
@@ -754,4 +953,16 @@ function TabItem({ label, icon, active = false, onClick }: TabItemProps) {
       <span className="text-[10px] leading-none font-medium">{label}</span>
     </button>
   );
+}
+
+// Export default as the list page
+export default function QuranPage() {
+  const { id } = useParams<{ id?: string }>();
+
+  // If id exists, render detail page, otherwise list page
+  if (id) {
+    return <SurahDetailPage />;
+  }
+
+  return <QuranListPage />;
 }

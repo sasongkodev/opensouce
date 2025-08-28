@@ -47,7 +47,44 @@ const HomePage = () => {
 
   const [locationAllowed, setLocationAllowed] = useState<boolean | null>(null);
   const [coords, setCoords] = useState<Coords | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+
+  // Reverse geocode coordinates to get location name
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    setIsReverseGeocoding(true);
+    try {
+      // Using OpenStreetMap Nominatim API for reverse geocoding
+      // Note: For production, consider using a more robust service or implementing rate limiting
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=id&addressdetails=1`
+      );
+
+      if (!response.ok) {
+        throw new Error("Gagal mendapatkan nama lokasi");
+      }
+
+      const data = await response.json();
+
+      // Try to get city/district name, fallback to state/region
+      const city =
+        data.address?.city ||
+        data.address?.town ||
+        data.address?.village ||
+        data.address?.county ||
+        data.address?.state ||
+        "Lokasi tidak dikenal";
+
+      setLocationName(city);
+    } catch (error) {
+      console.error("❌ Error reverse geocoding:", error);
+      setLocationName("Lokasi tidak dikenal");
+    } finally {
+      setIsReverseGeocoding(false);
+      setIsLoading(false); // Ensure loading is false after geocoding attempt
+    }
+  }, []);
 
   // Request geolocation on component mount or retry
   useEffect(() => {
@@ -57,16 +94,20 @@ const HomePage = () => {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocationAllowed(true);
-        setCoords({
+        const coordsData = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        });
-        setIsLoading(false);
+        };
+
+        setLocationAllowed(true);
+        setCoords(coordsData);
+        // Start reverse geocoding
+        reverseGeocode(coordsData.lat, coordsData.lng);
       },
       (error) => {
         console.warn("❌ Gagal mendapatkan lokasi:", error.message);
         setLocationAllowed(false);
+        setLocationName(null);
         setIsLoading(false);
       },
       {
@@ -75,10 +116,12 @@ const HomePage = () => {
         maximumAge: 60000,
       }
     );
-  }, [locationAllowed]);
+  }, [locationAllowed, reverseGeocode]);
 
   const handleRetryLocation = useCallback(() => {
     setLocationAllowed(null);
+    setLocationName(null);
+    setCoords(null);
   }, []);
 
   // Date (ID) helper
@@ -239,18 +282,21 @@ const HomePage = () => {
               </span>
             </span>
           )}
-          {locationAllowed === true && (
+          {(locationAllowed === true || isReverseGeocoding) && (
             <span>
-              Lokasi aktif
-              {coords ? (
+              {isReverseGeocoding ? (
+                "Mendapatkan nama lokasi..."
+              ) : (
                 <>
-                  :{" "}
+                  Lokasi aktif:{" "}
                   <span className="font-medium">
-                    {" "}
-                    {coords.lat.toFixed(3)}°, {coords.lng.toFixed(3)}°
+                    {locationName ||
+                      (coords
+                        ? `${coords.lat.toFixed(3)}°, ${coords.lng.toFixed(3)}°`
+                        : "...")}
                   </span>
                 </>
-              ) : null}
+              )}
             </span>
           )}
           {locationAllowed === false && (
@@ -354,7 +400,7 @@ const HomePage = () => {
                 <Skeleton className="h-4 w-1/2 bg-slate-200" />
               </div>
             )}
-            {locationAllowed === true && (
+            {(locationAllowed === true || isReverseGeocoding) && (
               <div className="grid grid-cols-3 gap-3 text-sm text-slate-700">
                 {prayerTimes.map((prayer) => (
                   <div
