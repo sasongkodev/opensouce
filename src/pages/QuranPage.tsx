@@ -242,9 +242,9 @@ export function QuranCard({
           <div className="min-w-0">
             <p className="text-xs text-slate-500"></p>
             <p className="truncate text-sm font-medium text-slate-800">
-              {data.lastReadAyat ? (
+              {data.lastReadAyah ? (
                 <>
-                  Ayat {data.lastReadAyat} • {formatLastRead(data.lastReadAt)}
+                  Ayat {data.lastReadAyah} • {formatLastRead(data.lastReadAt)}
                 </>
               ) : (
                 <></>

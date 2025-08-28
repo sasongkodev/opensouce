@@ -42,6 +42,14 @@ interface QuickActionItem {
   route: string;
 }
 
+interface HijriDate {
+  day: number;
+  month: number;
+  year: number;
+  monthName: string;
+  weekday: string;
+}
+
 const HomePage = () => {
   const navigate = useNavigate();
 
@@ -50,6 +58,8 @@ const HomePage = () => {
   const [locationName, setLocationName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+  const [hijriDate, setHijriDate] = useState<HijriDate | null>(null);
+  const [hijriLoading, setHijriLoading] = useState(true);
 
   // Reverse geocode coordinates to get location name
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
@@ -82,7 +92,44 @@ const HomePage = () => {
       setLocationName("Lokasi tidak dikenal");
     } finally {
       setIsReverseGeocoding(false);
-      setIsLoading(false); // Ensure loading is false after geocoding attempt
+      // Jangan setIsLoading(false di sini karena masih ada proses lain
+    }
+  }, []);
+
+  // Fetch Hijri date
+  const fetchHijriDate = useCallback(async () => {
+    setHijriLoading(true);
+    try {
+      const today = new Date();
+      const formattedDate = `${today.getDate()}-${
+        today.getMonth() + 1
+      }-${today.getFullYear()}`;
+
+      const response = await fetch(
+        `https://api.aladhan.com/v1/gToH/${formattedDate}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Gagal mendapatkan tanggal Hijriah");
+      }
+
+      const result = await response.json();
+
+      if (result.code === 200) {
+        const hijri = result.data.hijri;
+        setHijriDate({
+          day: parseInt(hijri.day),
+          month: parseInt(hijri.month.number),
+          year: parseInt(hijri.year),
+          monthName: hijri.month.en,
+          weekday: hijri.weekday.en,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error fetching Hijri date:", error);
+    } finally {
+      setHijriLoading(false);
+      setIsLoading(false); // Set loading false setelah semua proses selesai
     }
   }, []);
 
@@ -118,6 +165,11 @@ const HomePage = () => {
     );
   }, [locationAllowed, reverseGeocode]);
 
+  // Fetch Hijri date when component mounts
+  useEffect(() => {
+    fetchHijriDate();
+  }, [fetchHijriDate]);
+
   const handleRetryLocation = useCallback(() => {
     setLocationAllowed(null);
     setLocationName(null);
@@ -137,9 +189,6 @@ const HomePage = () => {
       return "Hari ini";
     }
   }, []);
-
-  // Placeholder Hijri — integrate real converter later
-  const hijriToday = "— Hijriyah akan otomatis diisi";
 
   // Placeholder next prayer — replace with real calculation later
   const nextPrayerLabel = "Dzuhur";
@@ -236,6 +285,22 @@ const HomePage = () => {
     []
   );
 
+  // Hijri month names in Indonesian
+  const hijriMonthNames = [
+    "Muharram",
+    "Shafar",
+    "Rabi'ul Awwal",
+    "Rabi'ul Akhir",
+    "Jumadil Awal",
+    "Jumadil Akhir",
+    "Rajab",
+    "Sya'ban",
+    "Ramadhan",
+    "Syawal",
+    "Dzulqa'dah",
+    "Dzulhijjah",
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pb-[calc(env(safe-area-inset-bottom)+88px)]">
       {/* App Bar */}
@@ -331,7 +396,21 @@ const HomePage = () => {
                 <Clock className="h-6 w-6" aria-hidden />
               </div>
             </div>
-            <p className="text-indigo-100 text-xs mt-2">{hijriToday}</p>
+            {/* Hijri Date Display */}
+            <div className="mt-2">
+              {hijriLoading ? (
+                <Skeleton className="h-4 w-32 bg-indigo-200/50" />
+              ) : hijriDate ? (
+                <p className="text-indigo-100 text-xs">
+                  {hijriDate.day} {hijriMonthNames[hijriDate.month - 1]}{" "}
+                  {hijriDate.year} H
+                </p>
+              ) : (
+                <p className="text-indigo-100 text-xs">
+                  Tanggal Hijriah tidak tersedia
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -443,10 +522,23 @@ const HomePage = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-slate-800 font-semibold text-base">
-              Segera hadir
-            </p>
-            <p className="text-slate-500 text-sm">{todayStr}</p>
+            {hijriLoading ? (
+              <Skeleton className="h-4 w-1/2 bg-slate-200" />
+            ) : hijriDate ? (
+              <>
+                <p className="text-slate-800 font-semibold text-base">
+                  {hijriDate.day} {hijriMonthNames[hijriDate.month - 1]}{" "}
+                  {hijriDate.year} H
+                </p>
+                <p className="text-slate-500 text-sm">
+                  {hijriDate.weekday}, {todayStr}
+                </p>
+              </>
+            ) : (
+              <p className="text-slate-500 text-sm">
+                Tanggal Hijriah tidak tersedia
+              </p>
+            )}
             <Button
               variant="ghost"
               size="sm"
