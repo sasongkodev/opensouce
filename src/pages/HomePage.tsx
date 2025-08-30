@@ -53,6 +53,7 @@ interface HijriDate {
 const HomePage = () => {
   const navigate = useNavigate();
 
+  // States
   const [locationAllowed, setLocationAllowed] = useState<boolean | null>(null);
   const [coords, setCoords] = useState<Coords | null>(null);
   const [locationName, setLocationName] = useState<string | null>(null);
@@ -60,13 +61,12 @@ const HomePage = () => {
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [hijriDate, setHijriDate] = useState<HijriDate | null>(null);
   const [hijriLoading, setHijriLoading] = useState(true);
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([]);
 
   // Reverse geocode coordinates to get location name
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     setIsReverseGeocoding(true);
     try {
-      // Using OpenStreetMap Nominatim API for reverse geocoding
-      // Note: For production, consider using a more robust service or implementing rate limiting
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=id&addressdetails=1`
       );
@@ -76,8 +76,6 @@ const HomePage = () => {
       }
 
       const data = await response.json();
-
-      // Try to get city/district name, fallback to state/region
       const city =
         data.address?.city ||
         data.address?.town ||
@@ -92,7 +90,6 @@ const HomePage = () => {
       setLocationName("Lokasi tidak dikenal");
     } finally {
       setIsReverseGeocoding(false);
-      // Jangan setIsLoading(false di sini karena masih ada proses lain
     }
   }, []);
 
@@ -101,9 +98,7 @@ const HomePage = () => {
     setHijriLoading(true);
     try {
       const today = new Date();
-      const formattedDate = `${today.getDate()}-${
-        today.getMonth() + 1
-      }-${today.getFullYear()}`;
+      const formattedDate = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
 
       const response = await fetch(
         `https://api.aladhan.com/v1/gToH/${formattedDate}`
@@ -129,11 +124,59 @@ const HomePage = () => {
       console.error("❌ Error fetching Hijri date:", error);
     } finally {
       setHijriLoading(false);
-      setIsLoading(false); // Set loading false setelah semua proses selesai
     }
   }, []);
 
-  // Request geolocation on component mount or retry
+  // Fetch prayer times
+  const fetchPrayerTimes = useCallback(async (lat: number, lng: number) => {
+    try {
+      const today = new Date();
+      const dateStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+      const res = await fetch(
+        `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=3`
+      );
+
+      if (!res.ok) throw new Error("Failed to fetch prayer times");
+
+      const data = await res.json();
+      const timings = data.data.timings;
+
+      const formattedPrayerTimes: PrayerTime[] = [
+        { key: "subuh", label: "Subuh", time: timings.Fajr },
+        { key: "dzuhur", label: "Dzuhur", time: timings.Dhuhr },
+        { key: "ashar", label: "Ashar", time: timings.Asr },
+        { key: "maghrib", label: "Maghrib", time: timings.Maghrib },
+        { key: "isya", label: "Isya", time: timings.Isha },
+      ];
+
+      setPrayerTimes(formattedPrayerTimes);
+    } catch (error) {
+      console.error("❌ Error fetching prayer times:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Get next prayer
+  const getNextPrayer = useCallback(() => {
+    if (!prayerTimes.length) return null;
+
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    for (const prayer of prayerTimes) {
+      const [hours, minutes] = prayer.time.split(":").map(Number);
+      const prayerTimeInMinutes = hours * 60 + minutes;
+
+      if (prayerTimeInMinutes > currentTime) {
+        return prayer;
+      }
+    }
+
+    return prayerTimes[0];
+  }, [prayerTimes]);
+
+  // Request geolocation
   useEffect(() => {
     if (!navigator.geolocation || locationAllowed !== null) return;
 
@@ -148,8 +191,8 @@ const HomePage = () => {
 
         setLocationAllowed(true);
         setCoords(coordsData);
-        // Start reverse geocoding
         reverseGeocode(coordsData.lat, coordsData.lng);
+        fetchPrayerTimes(coordsData.lat, coordsData.lng);
       },
       (error) => {
         console.warn("❌ Gagal mendapatkan lokasi:", error.message);
@@ -163,20 +206,36 @@ const HomePage = () => {
         maximumAge: 60000,
       }
     );
-  }, [locationAllowed, reverseGeocode]);
+  }, [locationAllowed, reverseGeocode, fetchPrayerTimes]);
 
   // Fetch Hijri date when component mounts
   useEffect(() => {
     fetchHijriDate();
   }, [fetchHijriDate]);
 
+  // Auto refresh at midnight
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        if (coords) {
+          fetchPrayerTimes(coords.lat, coords.lng);
+          fetchHijriDate();
+        }
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [coords, fetchPrayerTimes, fetchHijriDate]);
+
   const handleRetryLocation = useCallback(() => {
     setLocationAllowed(null);
     setLocationName(null);
     setCoords(null);
+    setPrayerTimes([]);
   }, []);
 
-  // Date (ID) helper
+  // Date helper
   const todayStr = useMemo(() => {
     try {
       return new Intl.DateTimeFormat("id-ID", {
@@ -190,21 +249,8 @@ const HomePage = () => {
     }
   }, []);
 
-  // Placeholder next prayer — replace with real calculation later
-  const nextPrayerLabel = "Dzuhur";
-  const nextPrayerTime = "12:03"; // WIB
-
-  // Prayer times data
-  const prayerTimes: PrayerTime[] = useMemo(
-    () => [
-      { key: "subuh", label: "Subuh", time: "04:37" },
-      { key: "dzuhur", label: "Dzuhur", time: "12:03" },
-      { key: "ashar", label: "Ashar", time: "15:24" },
-      { key: "maghrib", label: "Maghrib", time: "17:59" },
-      { key: "isya", label: "Isya", time: "19:09" },
-    ],
-    []
-  );
+  // Computed values
+  const nextPrayer = useMemo(() => getNextPrayer(), [getNextPrayer]);
 
   // Quick actions data
   const quickActions: QuickActionItem[] = useMemo(
@@ -248,7 +294,7 @@ const HomePage = () => {
     []
   );
 
-  // Navigation items (with route)
+  // Navigation items
   const navItems = useMemo(
     () => [
       {
@@ -285,7 +331,7 @@ const HomePage = () => {
     []
   );
 
-  // Hijri month names in Indonesian
+  // Hijri month names
   const hijriMonthNames = [
     "Muharram",
     "Shafar",
@@ -387,9 +433,11 @@ const HomePage = () => {
                 <p className="text-indigo-100 text-xs">Salat berikutnya</p>
                 <div className="flex items-baseline gap-2">
                   <h2 className="text-2xl font-bold leading-tight">
-                    {nextPrayerLabel}
+                    {nextPrayer?.label || "Memuat..."}
                   </h2>
-                  <span className="text-lg">{nextPrayerTime} WIB</span>
+                  <span className="text-lg">
+                    {nextPrayer?.time ? `${nextPrayer.time} WIB` : "..."}
+                  </span>
                 </div>
               </div>
               <div className="h-12 w-12 rounded-2xl bg-white/15 grid place-items-center">
@@ -423,7 +471,7 @@ const HomePage = () => {
                 key={item.label}
                 icon={item.icon}
                 label={item.label}
-                onClick={() => navigate(item.route)} // route aktif
+                onClick={() => navigate(item.route)}
               />
             ))}
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 h-20 grid place-items-center text-slate-400 text-xs">
@@ -605,7 +653,7 @@ interface TabItemProps {
   label: string;
   icon: React.ReactNode;
   active?: boolean;
-  onClick?: () => void; // ← tambah handler
+  onClick?: () => void;
 }
 
 function TabItem({ label, icon, active = false, onClick }: TabItemProps) {

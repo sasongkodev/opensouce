@@ -1,8 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* Dark mode variant - using standard CSS approach */
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -118,3 +119,4 @@
     @apply bg-background text-foreground;
   }
 }
+

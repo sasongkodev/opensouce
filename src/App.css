@@ -1,0 +1,14 @@
+/* Tambahkan di global CSS atau component CSS */
+.tafsir-content {
+  line-height: 1.6;
+  color: #334155;
+}
+
+.tafsir-content p {
+  margin-bottom: 1rem;
+}
+
+.tafsir-content strong {
+  font-weight: 600;
+  color: #4f46e5;
+}
