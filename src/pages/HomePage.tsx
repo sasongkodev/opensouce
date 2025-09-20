@@ -98,7 +98,9 @@ const HomePage = () => {
     setHijriLoading(true);
     try {
       const today = new Date();
-      const formattedDate = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+      const formattedDate = `${today.getDate()}-${
+        today.getMonth() + 1
+      }-${today.getFullYear()}`;
 
       const response = await fetch(
         `https://api.aladhan.com/v1/gToH/${formattedDate}`
@@ -131,7 +133,9 @@ const HomePage = () => {
   const fetchPrayerTimes = useCallback(async (lat: number, lng: number) => {
     try {
       const today = new Date();
-      const dateStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+      const dateStr = `${today.getDate()}-${
+        today.getMonth() + 1
+      }-${today.getFullYear()}`;
       const res = await fetch(
         `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=3`
       );
@@ -348,20 +352,25 @@ const HomePage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pb-[calc(env(safe-area-inset-bottom)+88px)]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 pb-[calc(env(safe-area-inset-bottom)+88px)]">
       {/* App Bar */}
       <header
-        className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60"
+        className="sticky top-0 z-20 border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-900/60"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="h-9 w-9 rounded-2xl bg-indigo-100 grid place-items-center">
-              <BookOpen className="w-5 h-5 text-indigo-700" aria-hidden />
+            <div className="h-9 w-9 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 grid place-items-center">
+              <BookOpen
+                className="w-5 h-5 text-indigo-700 dark:text-indigo-400"
+                aria-hidden
+              />
             </div>
             <div className="truncate">
-              <p className="text-xs text-slate-500 truncate">{todayStr}</p>
-              <h1 className="text-lg font-semibold text-slate-900 truncate">
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                {todayStr}
+              </p>
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-white truncate">
                 Al-Qur'an mu
               </h1>
             </div>
@@ -381,15 +390,15 @@ const HomePage = () => {
       {/* Main */}
       <main className="max-w-md mx-auto px-4 pt-4 space-y-6">
         {/* Location banner */}
-        <div className="flex items-center gap-2 text-slate-700 text-sm">
-          <MapPin className="h-4 w-4 shrink-0 text-indigo-600" />
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 text-sm">
+          <MapPin className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
           {isLoading && (
             <span className="inline-flex items-center gap-2">
               Mencoba mendeteksi lokasi…{" "}
               <span className="sr-only">Loading</span>
               <span className="relative inline-block h-2 w-2">
-                <span className="absolute inline-block h-2 w-2 rounded-full bg-indigo-500 animate-ping" />
-                <span className="absolute inline-block h-2 w-2 rounded-full bg-indigo-500" />
+                <span className="absolute inline-block h-2 w-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-ping" />
+                <span className="absolute inline-block h-2 w-2 rounded-full bg-indigo-500 dark:bg-indigo-400" />
               </span>
             </span>
           )}
@@ -412,7 +421,9 @@ const HomePage = () => {
           )}
           {locationAllowed === false && (
             <div className="flex w-full items-center justify-between gap-2">
-              <span className="text-red-600">Izin lokasi ditolak.</span>
+              <span className="text-red-600 dark:text-red-400">
+                Izin lokasi ditolak.
+              </span>
               <Button
                 variant="outline"
                 size="sm"
@@ -474,25 +485,29 @@ const HomePage = () => {
                 onClick={() => navigate(item.route)}
               />
             ))}
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 h-20 grid place-items-center text-slate-400 text-xs">
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 h-20 grid place-items-center text-slate-400 dark:text-slate-500 text-xs">
               Tambah
             </div>
           </div>
         </section>
 
         {/* Card: Al-Quran */}
-        <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-white">
+        <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-slate-800">
           <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-2">
-            <div className="p-2 bg-yellow-100 rounded-xl">
-              <BookOpen className="w-6 h-6 text-yellow-700" />
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl">
+              <BookOpen className="w-6 h-6 text-yellow-700 dark:text-yellow-400" />
             </div>
             <div>
-              <CardTitle className="text-lg">Al-Qur'an</CardTitle>
-              <CardDescription>Baca & pelajari kitab suci</CardDescription>
+              <CardTitle className="text-lg dark:text-white">
+                Al-Qur'an
+              </CardTitle>
+              <CardDescription className="dark:text-slate-400">
+                Baca & pelajari kitab suci
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-slate-600 text-sm mb-4">
+            <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">
               Baca mushaf dengan tajwid, terjemahan, dan tafsir lengkap.
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -502,7 +517,10 @@ const HomePage = () => {
               >
                 Baca Sekarang
               </Button>
-              <Button variant="outline" className="w-full rounded-xl">
+              <Button
+                variant="outline"
+                className="w-full rounded-xl dark:border-slate-600 dark:text-slate-300"
+              >
                 Lanjutkan Terakhir
               </Button>
             </div>
@@ -510,29 +528,33 @@ const HomePage = () => {
         </Card>
 
         {/* Card: Jadwal Salat */}
-        <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-white">
+        <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-slate-800">
           <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-2">
-            <div className="p-2 bg-green-100 rounded-xl">
-              <Clock className="w-6 h-6 text-green-700" />
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
+              <Clock className="w-6 h-6 text-green-700 dark:text-green-400" />
             </div>
             <div>
-              <CardTitle className="text-lg">Jadwal Salat</CardTitle>
-              <CardDescription>Waktu salat harian</CardDescription>
+              <CardTitle className="text-lg dark:text-white">
+                Jadwal Salat
+              </CardTitle>
+              <CardDescription className="dark:text-slate-400">
+                Waktu salat harian
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
             {isLoading && (
               <div className="space-y-2">
-                <Skeleton className="h-4 w-3/4 bg-slate-200" />
-                <Skeleton className="h-4 w-1/2 bg-slate-200" />
+                <Skeleton className="h-4 w-3/4 bg-slate-200 dark:bg-slate-700" />
+                <Skeleton className="h-4 w-1/2 bg-slate-200 dark:bg-slate-700" />
               </div>
             )}
             {(locationAllowed === true || isReverseGeocoding) && (
-              <div className="grid grid-cols-3 gap-3 text-sm text-slate-700">
+              <div className="grid grid-cols-3 gap-3 text-sm text-slate-700 dark:text-slate-300">
                 {prayerTimes.map((prayer) => (
                   <div
                     key={prayer.key}
-                    className="rounded-xl border bg-slate-50 px-3 py-2 flex items-center justify-between"
+                    className="rounded-xl border bg-slate-50 dark:bg-slate-700 dark:border-slate-600 px-3 py-2 flex items-center justify-between"
                   >
                     <span className="font-medium">{prayer.label}</span>
                     <span className="tabular-nums">{prayer.time}</span>
@@ -542,13 +564,13 @@ const HomePage = () => {
             )}
             {locationAllowed === false && (
               <div>
-                <p className="text-red-600 text-sm">
+                <p className="text-red-600 dark:text-red-400 text-sm">
                   Aktifkan izin lokasi untuk menampilkan jadwal salat.
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-3 w-full rounded-xl"
+                  className="mt-3 w-full rounded-xl dark:border-slate-600 dark:text-slate-300"
                   onClick={handleRetryLocation}
                 >
                   Coba Lagi
@@ -559,38 +581,42 @@ const HomePage = () => {
         </Card>
 
         {/* Card: Kalender Hijriyah */}
-        <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-white">
+        <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-slate-800">
           <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-2">
-            <div className="p-2 bg-blue-100 rounded-xl">
-              <CalendarIcon className="w-6 h-6 text-blue-700" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+              <CalendarIcon className="w-6 h-6 text-blue-700 dark:text-blue-400" />
             </div>
             <div>
-              <CardTitle className="text-lg">Kalender Hijriyah</CardTitle>
-              <CardDescription>Tanggal Islam hari ini</CardDescription>
+              <CardTitle className="text-lg dark:text-white">
+                Kalender Hijriyah
+              </CardTitle>
+              <CardDescription className="dark:text-slate-400">
+                Tanggal Islam hari ini
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {hijriLoading ? (
-              <Skeleton className="h-4 w-1/2 bg-slate-200" />
+              <Skeleton className="h-4 w-1/2 bg-slate-200 dark:bg-slate-700" />
             ) : hijriDate ? (
               <>
-                <p className="text-slate-800 font-semibold text-base">
+                <p className="text-slate-800 dark:text-slate-200 font-semibold text-base">
                   {hijriDate.day} {hijriMonthNames[hijriDate.month - 1]}{" "}
                   {hijriDate.year} H
                 </p>
-                <p className="text-slate-500 text-sm">
+                <p className="text-slate-500 dark:text-slate-400 text-sm">
                   {hijriDate.weekday}, {todayStr}
                 </p>
               </>
             ) : (
-              <p className="text-slate-500 text-sm">
+              <p className="text-slate-500 dark:text-slate-400 text-sm">
                 Tanggal Hijriah tidak tersedia
               </p>
             )}
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2 text-indigo-600 hover:text-indigo-800 w-full justify-start px-0"
+              className="mt-2 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 w-full justify-start px-0"
               onClick={() => navigate("/kalender")}
             >
               Lihat Kalender Lengkap
@@ -603,7 +629,7 @@ const HomePage = () => {
 
       {/* Bottom Nav (Mobile) */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 border-t bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70"
+        className="fixed bottom-0 left-0 right-0 z-30 border-t bg-white/90 dark:bg-slate-900/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-slate-900/70"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Navigasi bawah"
       >
@@ -636,11 +662,11 @@ function QuickItem({ icon, label, onClick }: QuickItemProps) {
   return (
     <button
       onClick={onClick}
-      className="h-20 rounded-2xl border bg-white/70 active:scale-95 transition grid place-items-center text-slate-700 hover:shadow-sm"
+      className="h-20 rounded-2xl border bg-white/70 dark:bg-slate-800/70 dark:border-slate-700 active:scale-95 transition grid place-items-center text-slate-700 dark:text-slate-300 hover:shadow-sm"
       aria-label={label}
     >
       <div className="flex flex-col items-center gap-2">
-        <div className="h-9 w-9 rounded-xl bg-slate-100 grid place-items-center">
+        <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-700 grid place-items-center">
           {icon}
         </div>
         <span className="text-xs font-medium">{label}</span>
@@ -661,13 +687,17 @@ function TabItem({ label, icon, active = false, onClick }: TabItemProps) {
     <button
       onClick={onClick}
       className={`flex flex-col items-center gap-1 rounded-xl py-1 ${
-        active ? "text-indigo-600" : "text-slate-500 hover:text-slate-700"
+        active
+          ? "text-indigo-600 dark:text-indigo-400"
+          : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
       }`}
       aria-current={active ? "page" : undefined}
     >
       <div
         className={`h-9 w-9 grid place-items-center rounded-xl ${
-          active ? "bg-indigo-50" : "bg-transparent"
+          active
+            ? "bg-indigo-50 dark:bg-indigo-900/30"
+            : "bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
         }`}
       >
         {icon}

@@ -12,3 +12,35 @@
   font-weight: 600;
   color: #4f46e5;
 }
+
+
+/* Dark mode styles */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  color: #e2e8f0;
+}
+
+/* Dark mode untuk komponen umum */
+.dark .bg-white {
+  background-color: #1e293b;
+}
+
+.dark .text-slate-900 {
+  color: #f1f5f9;
+}
+
+.dark .border-slate-200 {
+  border-color: #374151;
+}
+
+.dark .bg-slate-100 {
+  background-color: #374151;
+}
+
+.dark .text-slate-600 {
+  color: #94a3b8;
+}
